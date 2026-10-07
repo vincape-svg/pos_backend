@@ -18,12 +18,16 @@ const app = express();
 // =========================
 // CORS
 // =========================
+const corsOrigins = (
+  process.env.CORS_ORIGIN || "http://localhost:5173,https://gapinngantuq.netlify.app"
+)
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://gapinngantuq.netlify.app",
-    ],
+    origin: corsOrigins,
     methods: [
       "GET",
       "POST",
