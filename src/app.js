@@ -53,6 +53,13 @@ app.use(
 );
 
 // =========================
+// HEALTH CHECK (untuk Render/uptime monitor)
+// =========================
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok", service: "pos_backend" });
+});
+
+// =========================
 // ROUTES
 // =========================
 app.use("/api/auth", authRoutes);
