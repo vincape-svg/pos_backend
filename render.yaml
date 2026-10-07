@@ -1,0 +1,91 @@
+services:
+  # ============================
+  # BACKEND POS (Node.js + Express)
+  # ============================
+  # Link repository https://github.com/vincape-svg/pos_backend
+  # ke Render: https://render.com/dashboard
+  # Settings > Environment > Add from YAML file: render.yaml
+  #
+  # PENTING -- Environment Variables (wajib diisi, sebagian SENSITIF):
+  #
+  # DATABASE (production):
+  #   - DB_HOST        = host database Aiven production
+  #   - DB_PORT        = port database Aiven
+  #   - DB_USER        = user database Aiven
+  #   - DB_PASSWORD    = password database Aiven (DARI RENDER ENVS)
+  #   - DB_NAME        = nama database (biasanya pos_db)
+  #   - DB_SSL_REJECT_UNAUTHORIZED=true  (Aiven WAJIB SSL)
+  #
+  #   CATATAN: Jika Anda tetap menggunakan database lokal (MariaDB
+  #   di localhost), backend TIDAK AKAN bisa terhubung karena Render
+  #   berjalan di cloud. Database harus reachable (public endpoint).
+  #
+  # AUTHENTICATION:
+  #   - JWT_SECRET         = secret untuk JWT (ganti dengan string random panjang)
+  #
+  # EMAIL (sendmail OTP reset password):
+  #   - EMAIL_USER         = akun Gmail/SMTP
+  #   - EMAIL_PASS         = app password Gmail
+  #
+  # OTP / NOTIFIKASI:
+  #   - WHATSAPP_API_URL   = https://api.fonnte.com/send
+  #   - WHATSAPP_API_TOKEN = token Fonnte (jika dipakai)
+  #   - OTP_ID_API_KEY     = API key OTP.ID (jika dipakai)
+  #
+  # FIREBASE ADMIN (Google login):
+  #   - FIREBASE_PROJECT_ID       = posvin-77e4a
+  #   - FIREBASE_CLIENT_EMAIL     = firebase-adminsdk-...@posvin-77e4a.iam.gserviceaccount.com
+  #   - FIREBASE_PRIVATE_KEY      = -----BEGIN PRIVATE KEY----- ... (DARI RENDER ENVS)
+  #
+  # CORS (domain frontend production):
+  #   - CORS_ORIGIN=https://gapinngantuq.netlify.app
+  #
+  # ============================
+  - type: web
+    name: pos-backend
+    env: node
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: 3306
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: pos_db
+      - key: DB_SSL_REJECT_UNAUTHORIZED
+        value: true
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: WHATSAPP_API_URL
+        value: https://api.fonnte.com/send
+      - key: WHATSAPP_API_TOKEN
+        sync: false
+      - key: OTP_ID_API_KEY
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        value: posvin-77e4a
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      - key: CORS_ORIGIN
+        value: https://gapinngantuq.netlify.app
+    healthCheckPath: /health
+    scale:
+      minInstances: 1
+    regions:
+      - singapore

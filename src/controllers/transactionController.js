@@ -15,7 +15,7 @@ const createTransaction = async (req, res) => {
 
     const userId = req.user.id;
 
-    await db.query(
+    const [result] = await db.query(
       `INSERT INTO transactions
       (
         user_id,
@@ -45,7 +45,10 @@ const createTransaction = async (req, res) => {
     );
 
     return res.status(201).json({
-      message: "Transaction berhasil dibuat"
+      message: "Transaction berhasil dibuat",
+      data: {
+        transaction_id: result.insertId
+      }
     });
 
   } catch (error) {

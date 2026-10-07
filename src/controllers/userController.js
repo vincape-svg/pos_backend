@@ -6,35 +6,120 @@ const db = require("../config/database");
 // =========================
 const createUser = async (req, res) => {
   try {
-    const { username, email, password } = req.body || {};
+    const {
+      username,
+      email,
+      phone,
+      password,
+      role_id
+    } = req.body || {};
 
-    if (!username || !email || !password) {
+    if (
+      !username ||
+      !email ||
+      !phone ||
+      !password
+    ) {
       return res.status(400).json({
-        message: "Username, email, and password are required"
+        message:
+          "Username, email, phone, and password are required"
       });
     }
 
-    const [existingUser] = await db.query(
-      "SELECT id FROM users WHERE email = ?",
+    if (!role_id) {
+      return res.status(400).json({
+        message: "Role wajib dipilih"
+      });
+    }
+
+    // =========================
+    // CHECK EMAIL
+    // =========================
+
+    const [existingEmail] = await db.query(
+      `SELECT id
+       FROM users
+       WHERE email = ?
+       AND status = 1`,
       [email]
     );
 
-    if (existingUser.length > 0) {
+    if (existingEmail.length > 0) {
       return res.status(409).json({
         message: "Email already exists"
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // =========================
+    // CHECK PHONE
+    // =========================
 
-    // ID diambil dari TOKEN
+    const [existingPhone] = await db.query(
+      `SELECT id
+       FROM users
+       WHERE phone = ?
+       AND status = 1`,
+      [phone]
+    );
+
+    if (existingPhone.length > 0) {
+      return res.status(409).json({
+        message: "Nomor telepon sudah digunakan"
+      });
+    }
+
+    // =========================
+    // CHECK ROLE
+    // =========================
+
+    const [roles] = await db.query(
+      `SELECT id
+       FROM roles
+       WHERE id = ?`,
+      [role_id]
+    );
+
+    if (roles.length === 0) {
+      return res.status(400).json({
+        message: "Role tidak ditemukan"
+      });
+    }
+
+    // =========================
+    // HASH PASSWORD
+    // =========================
+
+    const hashedPassword =
+      await bcrypt.hash(password, 10);
+
+    // ID dari TOKEN
     const createdBy = req.user.id;
+
+    // =========================
+    // INSERT USER
+    // =========================
 
     await db.query(
       `INSERT INTO users
-      (username, email, password, status, created_at, created_by)
-      VALUES (?, ?, ?, 1, NOW(), ?)`,
-      [username, email, hashedPassword, createdBy]
+      (
+        username,
+        email,
+        phone,
+        password,
+        role_id,
+        status,
+        created_at,
+        created_by
+      )
+      VALUES (?, ?, ?, ?, ?, 1, NOW(), ?)`,
+      [
+        username,
+        email,
+        phone,
+        hashedPassword,
+        role_id,
+        createdBy
+      ]
     );
 
     return res.status(201).json({
@@ -42,7 +127,10 @@ const createUser = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("CREATE USER ERROR:", error);
+    console.error(
+      "CREATE USER ERROR:",
+      error
+    );
 
     return res.status(500).json({
       message: "Internal Server Error"
@@ -58,17 +146,23 @@ const getUsers = async (req, res) => {
   try {
     const [users] = await db.query(
       `SELECT
-        id,
-        username,
-        email,
-        profile_photo,
-        status,
-        created_at,
-        created_by,
-        updated_at,
-        updated_by
-      FROM users
-      WHERE status = 1`
+        u.id,
+        u.username,
+        u.email,
+        u.phone,
+        u.profile_photo,
+        u.role_id,
+        r.name AS role,
+        u.status,
+        u.created_at,
+        u.created_by,
+        u.updated_at,
+        u.updated_by
+      FROM users u
+      LEFT JOIN roles r
+        ON u.role_id = r.id
+      WHERE u.status = 1
+      ORDER BY u.id DESC`
     );
 
     return res.status(200).json({
@@ -77,7 +171,10 @@ const getUsers = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("GET USERS ERROR:", error);
+    console.error(
+      "GET USERS ERROR:",
+      error
+    );
 
     return res.status(500).json({
       message: "Internal Server Error"
@@ -95,17 +192,23 @@ const getUserById = async (req, res) => {
 
     const [users] = await db.query(
       `SELECT
-        id,
-        username,
-        email,
-        profile_photo,
-        status,
-        created_at,
-        created_by,
-        updated_at,
-        updated_by
-      FROM users
-      WHERE id = ? AND status = 1`,
+        u.id,
+        u.username,
+        u.email,
+        u.phone,
+        u.profile_photo,
+        u.role_id,
+        r.name AS role,
+        u.status,
+        u.created_at,
+        u.created_by,
+        u.updated_at,
+        u.updated_by
+      FROM users u
+      LEFT JOIN roles r
+        ON u.role_id = r.id
+      WHERE u.id = ?
+      AND u.status = 1`,
       [id]
     );
 
@@ -121,7 +224,10 @@ const getUserById = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("GET USER ERROR:", error);
+    console.error(
+      "GET USER ERROR:",
+      error
+    );
 
     return res.status(500).json({
       message: "Internal Server Error"
@@ -136,16 +242,41 @@ const getUserById = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, email, password } = req.body || {};
 
-    if (!username || !email) {
+    const {
+      username,
+      email,
+      phone,
+      password,
+      role_id
+    } = req.body || {};
+
+    if (
+      !username ||
+      !email ||
+      !phone
+    ) {
       return res.status(400).json({
-        message: "Username and email are required"
+        message:
+          "Username, email, and phone are required"
       });
     }
 
+    if (!role_id) {
+      return res.status(400).json({
+        message: "Role wajib dipilih"
+      });
+    }
+
+    // =========================
+    // CHECK USER
+    // =========================
+
     const [users] = await db.query(
-      "SELECT id FROM users WHERE id = ? AND status = 1",
+      `SELECT id
+       FROM users
+       WHERE id = ?
+       AND status = 1`,
       [id]
     );
 
@@ -155,8 +286,13 @@ const updateUser = async (req, res) => {
       });
     }
 
+    // =========================
+    // CHECK EMAIL
+    // =========================
+
     const [emailCheck] = await db.query(
-      `SELECT id FROM users
+      `SELECT id
+       FROM users
        WHERE email = ?
        AND id != ?
        AND status = 1`,
@@ -169,33 +305,105 @@ const updateUser = async (req, res) => {
       });
     }
 
+    // =========================
+    // CHECK PHONE
+    // =========================
+
+    const [phoneCheck] = await db.query(
+      `SELECT id
+       FROM users
+       WHERE phone = ?
+       AND id != ?
+       AND status = 1`,
+      [phone, id]
+    );
+
+    if (phoneCheck.length > 0) {
+      return res.status(409).json({
+        message:
+          "Nomor telepon sudah digunakan"
+      });
+    }
+
+    // =========================
+    // CHECK ROLE
+    // =========================
+
+    const [roles] = await db.query(
+      `SELECT id
+       FROM roles
+       WHERE id = ?`,
+      [role_id]
+    );
+
+    if (roles.length === 0) {
+      return res.status(400).json({
+        message: "Role tidak ditemukan"
+      });
+    }
+
     // ID dari TOKEN
     const updatedBy = req.user.id;
 
+    // =========================
+    // UPDATE WITH PASSWORD
+    // =========================
+
     if (password) {
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword =
+        await bcrypt.hash(
+          password,
+          10
+        );
 
       await db.query(
         `UPDATE users
-        SET username = ?,
-            email = ?,
-            password = ?,
-            updated_at = NOW(),
-            updated_by = ?
-        WHERE id = ? AND status = 1`,
-        [username, email, hashedPassword, updatedBy, id]
+        SET
+          username = ?,
+          email = ?,
+          phone = ?,
+          password = ?,
+          role_id = ?,
+          updated_at = NOW(),
+          updated_by = ?
+        WHERE id = ?
+        AND status = 1`,
+        [
+          username,
+          email,
+          phone,
+          hashedPassword,
+          role_id,
+          updatedBy,
+          id
+        ]
       );
 
     } else {
 
+      // =========================
+      // UPDATE WITHOUT PASSWORD
+      // =========================
+
       await db.query(
         `UPDATE users
-        SET username = ?,
-            email = ?,
-            updated_at = NOW(),
-            updated_by = ?
-        WHERE id = ? AND status = 1`,
-        [username, email, updatedBy, id]
+        SET
+          username = ?,
+          email = ?,
+          phone = ?,
+          role_id = ?,
+          updated_at = NOW(),
+          updated_by = ?
+        WHERE id = ?
+        AND status = 1`,
+        [
+          username,
+          email,
+          phone,
+          role_id,
+          updatedBy,
+          id
+        ]
       );
     }
 
@@ -204,7 +412,10 @@ const updateUser = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("UPDATE USER ERROR:", error);
+    console.error(
+      "UPDATE USER ERROR:",
+      error
+    );
 
     return res.status(500).json({
       message: "Internal Server Error"
@@ -221,7 +432,10 @@ const deleteUser = async (req, res) => {
     const { id } = req.params;
 
     const [users] = await db.query(
-      "SELECT id FROM users WHERE id = ? AND status = 1",
+      `SELECT id
+       FROM users
+       WHERE id = ?
+       AND status = 1`,
       [id]
     );
 
@@ -236,9 +450,10 @@ const deleteUser = async (req, res) => {
 
     await db.query(
       `UPDATE users
-      SET status = 0,
-          deleted_at = NOW(),
-          deleted_by = ?
+      SET
+        status = 0,
+        deleted_at = NOW(),
+        deleted_by = ?
       WHERE id = ?`,
       [deletedBy, id]
     );
@@ -248,7 +463,10 @@ const deleteUser = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("DELETE USER ERROR:", error);
+    console.error(
+      "DELETE USER ERROR:",
+      error
+    );
 
     return res.status(500).json({
       message: "Internal Server Error"

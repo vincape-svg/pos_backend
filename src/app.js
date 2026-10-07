@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
@@ -14,16 +15,46 @@ const rolesRoutes = require("./routes/rolesRoutes");
 
 const app = express();
 
+// =========================
 // CORS
-app.use(cors());
+// =========================
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://gapinngantuq.netlify.app",
+    ],
+    methods: [
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS",
+    ],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+    ],
+  })
+);
 
+// =========================
 // JSON
+// =========================
 app.use(express.json());
 
-// Static files untuk upload
-app.use("/uploads", express.static("uploads"));
+// =========================
+// STATIC FILES - UPLOAD
+// =========================
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "../uploads"))
+);
 
-// Routes
+// =========================
+// ROUTES
+// =========================
 app.use("/api/auth", authRoutes);
 
 app.use("/api/users", userRoutes);
